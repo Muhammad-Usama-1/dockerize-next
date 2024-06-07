@@ -63,7 +63,7 @@ Follow these steps to build and run the Docker image for your Next.js project:
    Build the image using the following command:
 
    ```sh
-   docker build -t nextjs-app .
+   docker build -t nextjs-app -f prod.dockerfile .
    ```
 
 3. **Run the Docker Container**
