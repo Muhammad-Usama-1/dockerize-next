@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-## Getting Started
 
-First, run the development server:
+# Next.js Project Dockerization Guide
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+This guide provides a comprehensive step-by-step process for building and running your Next.js application using Docker. The Dockerfile is designed to handle both the build (builder stage) and runtime (runner stage) environments.
+
+
+
+### Prerequisites
+
+Before you begin, ensure you have the following tools installed
+
+- Docker
+
+
+### Project Structure
+
+The project structure is as follows:
+
+```
+dockerize-next/
+├── .next/
+├── node_modules/
+├── public/
+├── styles/
+├── pages/
+├── components/
+├── package.json
+├── package-lock.json
+├── yarn.lock
+├── pnpm-lock.yaml
+├── next.config.js
+└── Dockerfile
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Dockerfile Overview
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+The Dockerfile is divided into two stages: `builder` and `runner`.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+1. **Builder Stage**: 
+   - Sets up the environment for building the Next.js project.
+   - Installs dependencies.
+   - Builds the project.
 
-## Learn More
+2. **Runner Stage**:
+   - Sets up the production environment.
+   - Copies the necessary files from the builder stage.
+   - Runs the built application.
 
-To learn more about Next.js, take a look at the following resources:
+### Steps to Build and Run the Docker Image
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Follow these steps to build and run the Docker image for your Next.js project:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+1. **Clone the Repository**
 
-## Deploy on Vercel
+   ```sh
+   git clone https://github.com/Muhammad-Usama-1/dockerize-next
+   cd dockerize-next
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Build the Docker Image**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+   Build the image using the following command:
+
+   ```sh
+   docker build -t nextjs-app .
+   ```
+
+3. **Run the Docker Container**
+
+   Run the container using the following command:
+
+   ```sh
+   docker run -p 3000:3000 nextjs-app
+   ```
+
+   The application should now be accessible at `http://localhost:3000`.
+
+### Detailed Dockerfile Explanation
+
+Here's a detailed breakdown of the Dockerfile used in this project:
+
+```dockerfile
+# Stage 1: Builder
+FROM node:18-alpine AS builder
+
+# Set the working directory
+WORKDIR /nextjsproject
+
+# Copy the package files
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+
+# Install dependencies based on the lockfile
+RUN \
+    if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+    elif [ -f package-lock.json ]; then npm ci; \
+    elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
+
+# Copy the rest of the project files
+COPY . .
+
+# Build the project
+RUN npm run build
+
+# Stage 2: Runner
+FROM node:18-alpine AS runner
+
+# Set the working directory
+WORKDIR /nextjsproject
+
+# Set the environment to production
+ENV NODE_ENV production
+
+# Create a system group and user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy the necessary files from the builder stage
+COPY --from=builder /nextjsproject/package.json .
+COPY --from=builder /nextjsproject/package-lock.json .
+
+COPY --from=builder /nextjsproject/next.config.js ./
+COPY --from=builder /nextjsproject/public ./public
+
+COPY --from=builder /nextjsproject/.next/standalone ./
+COPY --from=builder /nextjsproject/.next/static ./.next/static
+
+# Change to non-root user
+USER nextjs
+
+# Expose the necessary port
+EXPOSE 3000
+
+# Set the entry point
+ENTRYPOINT ["npm", "start"]
+```
+
+### Conclusion
+
+This documentation provides the necessary steps to build, run, and deploy your Next.js application using Docker
